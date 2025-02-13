@@ -7,6 +7,8 @@ dependencies = [
     "aiosignal==1.3.2",
     "attrs==25.1.0",
     "black==25.1.0",
+    "certifi==2025.1.31",
+    "charset-normalizer==3.4.1",
     "click==8.1.8",
     "frozenlist==1.5.0",
     "idna==3.10",
@@ -17,8 +19,13 @@ dependencies = [
     "platformdirs==4.3.6",
     "propcache==0.2.1",
     "py-cord==2.6.1",
+    "requests==2.32.3",
+    "urllib3==2.3.0",
     "yarl==1.18.3",
 ]
+
+[tool.setuptools.packages.find]
+include = ["reputable_bot"]
 
 [project.scripts]
 reputable_bot = "reputable_bot.main:main"
