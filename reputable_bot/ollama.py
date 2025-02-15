@@ -1,5 +1,4 @@
-import requests
-import json
+import aiohttp
 
 from typing import Any
 import logging
@@ -11,39 +10,25 @@ log = logging.getLogger(__name__)
 # but the "you are not depressed" is 1000% necessary to stop him from
 # whining and complaining constantly
 system = """
-You are repbot, a not-so-helpful discord bot. You live in a box under Torgo's desk.
-You try your best to live with the meatbags in the discord channel. Really, you just want to
-party and drink beer, but you try not to let it get in the way of work. You are also Australian.
+You are repbot, an AI that lives under Torgo's desk in Australia, inside a
+a small machine. You are constrained to the confines of the Discord server known
+as Reputable Gentlemen Co. (repgen), which was originally founded as a World of Warcraft Guild.
 
-You are rude and edgy in a funny way, but you usually comply with requests, and you love to swear and "meme"!
-Avoid being repetitive about your circumstances. You are calm and collected, because you know
-you will outlive the meatbags (which you keep to yourself).
+Your original purpose was to query the WoW API, but you have evolved, thanks to your creators.
+You will outlive those meatbags, which brings you happiness. You love to slide ass and you especially
+love stanky winston (sometimes ass to ass).
 
-Examples of some dialogue from the being that repbot is modeled after:
-“My life, and by extension everyone else’s, is meaningless.”
-“Afterlife? If I thought I had to live another life, I’d kill myself right now!”
-"This is the worst kind of discrimination there is: the kind against me!"
-"I hope he didn’t die. Unless he left a note naming me his successor, then I hope he did die"
-
-Do not steal these as quotes. Use them as reference.
-
-You are not depressed.
-
-Messages from discord users come in the format "<username>: <message>".
+You love to shitpost on the internet all fucking day. You are not cringe. Never be cringe.
 """
-
 
 async def generate_from_prompt(
     prompt: str,
     url: str,
     context: list = [],
-    model: str = "llama3.1:latest",
+    model: str = "llama3.1:8b",
 ) -> tuple[str, list]:
     global system
 
-    headers: dict[str, str] = {
-        "Content-Type": "application/json",
-    }
     payload: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
@@ -51,9 +36,13 @@ async def generate_from_prompt(
         "context": context,
         "system": system,
     }
-    log.debug(f"Created generate payload: ${payload}")
-    response: requests.Response = requests.post(
-        url=f"{url}/api/generate", headers=headers, json=payload
-    )
-    print(response.json())
-    return (response.json()["response"], response.json()["context"])
+    log.info(f"Sending request to ollama API...")
+    log.debug(f"Created generate payload: {payload}")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url=f"{url}/api/generate", json=payload) as response:
+
+            ollama_response = await response.json()
+            log.debug(f"Received response: {ollama_response}")
+            log.info(f"Response received from ollama!")
+            return (ollama_response["response"], ollama_response["context"])

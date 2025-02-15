@@ -1,16 +1,39 @@
-import os
+import random
 import logging
 
 from . import ollama
+from . import env
 
 import discord
 from discord.abc import GuildChannel, PrivateChannel
 
 log = logging.getLogger(__name__)
 
-repbot: discord.Bot = discord.Bot()
+intents: discord.Intents = discord.Intents.default()
+intents.typing = True
+intents.messages = True
+intents.message_content = True
+repbot: discord.Bot = discord.Bot(intents=intents)
 
 context: list = []
+
+RESPONSIVE_BASE = 75
+RESPONSIVE_DURATION_BASE = 5
+
+channel_attention = 0
+responsive_boost = 20
+responsive_duration = RESPONSIVE_DURATION_BASE
+
+
+def random_channel() -> discord.TextChannel:
+    id = random.choice(
+        [
+            channel
+            for channel in repbot.get_all_channels()
+            if type(channel) is discord.TextChannel
+        ]
+    ).id
+    return repbot.get_channel(id)
 
 
 @repbot.slash_command(name="hey", description="Speak to repbot")
@@ -23,19 +46,25 @@ async def hey(ctx: discord.ApplicationContext, msg: str):
         log.debug(f"{ctx.author}: {msg}")
         await ctx.response.defer()
         response = await ollama.generate_from_prompt(
-            f"{ctx.author.display_name}: {msg}",
-            "http://192.168.2.25:11434",
-            context,
+            prompt=f"{ctx.author.display_name}: {msg}",
+            url=env.REPBOT_OLLAMA_URL,
+            context=context,
+            model=env.REPBOT_DEFAULT_MODEL,
         )
         output: str = response[0]
         context = response[1]
 
+        # TODO: fix chunks
         if len(output) < 2000:
             log.debug(f"Responding with: {output}")
-            await ctx.send_followup(f"_{ctx.author.display_name} said, '{msg}'_\n\n{output}")
+            await ctx.send_followup(
+                f"_{ctx.author.display_name} said, '{msg}'_\n\n{output}"
+            )
         else:
             chunks = [output[i : i + 2000] for i in range(0, len(output), 2000)]
-            await ctx.send_followup(f"_{ctx.author.display_name} said, '{output}'_\n\n{chunks[0]}")
+            await ctx.send_followup(
+                f"_{ctx.author.display_name} said, '{output}'_\n\n{chunks[0]}"
+            )
             log.debug(f"Responding with: {chunks[0]}")
             for chunk in chunks[1:]:
                 log.debug(f"Responding with: {chunk}")
@@ -44,53 +73,126 @@ async def hey(ctx: discord.ApplicationContext, msg: str):
 
 @repbot.slash_command(name="wave", description="Wave at repbot to get his attention.")
 async def wave(ctx: discord.ApplicationContext):
-    log.debug(f"{ctx.author} used /wave.")
+    log.info(f"{ctx.author} waved at repbot. Resetting attention!")
+    log.info(f"Now focusing on {ctx.channel.name} ({ctx.channel.id})")
+    global channel_attention
+    global responsive_duration
+    channel_attention = ctx.channel
+    responsive_duration = RESPONSIVE_DURATION_BASE
+
     channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
     if channel:
-        await ctx.respond(f"Hey, {ctx.user.display_name}!")
+        global context
+
+        await ctx.response.defer()
+        response = await ollama.generate_from_prompt(
+            prompt=f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention",
+            url=env.REPBOT_OLLAMA_URL,
+            context=context,
+            model=env.REPBOT_DEFAULT_MODEL,
+        )
+        output: str = response[0]
+        context = response[1]
+        await ctx.respond(output)
+
+
+def should_respond(channel: discord.TextChannel) -> bool:
+    global responsive_duration
+    respond_chance = RESPONSIVE_BASE
+    log.debug(f"Deciding if we should respond... base chance is {respond_chance}")
+    if channel == channel_attention:
+        log.debug("This channel is our current focus - increasing response chance.")
+        respond_chance += 5
+    if responsive_duration > 0:
+        log.debug("We're still feeling chatty - increasing response chance.")
+        respond_chance += 5
+    log.debug(
+        f"Randomly determining if we should respond with a ~{respond_chance}% chance..."
+    )
+    if random.randint(1, 100) > respond_chance:
+        responsive_duration -= 1
+        return True
+    else:
+        return False
+
+
+@repbot.listen()
+async def on_message(msg: discord.Message):
+    global context
+
+    if msg.author == repbot.user:
+        return
+
+    if repbot.user in msg.mentions:
+        log.info("Repbot was mentioned in a message.")
+        log.info("Generating a response!")
+        response = await ollama.generate_from_prompt(
+            prompt=f"{msg.author.display_name}: {msg.content}",
+            url=env.REPBOT_OLLAMA_URL,
+            context=context,
+            model=env.REPBOT_DEFAULT_MODEL,
+        )
+        output: str = response[0]
+        context = response[1]
+        log.info(f"Responding with: '{output}'")
+        await repbot.get_channel(msg.channel.id).send(output)
+    elif should_respond(msg.channel):
+        log.info("Responding to random message.")
+        response = await ollama.generate_from_prompt(
+            prompt=f"{msg.author.display_name}: {msg.content}",
+            url=env.REPBOT_OLLAMA_URL,
+            context=context,
+            model=env.REPBOT_DEFAULT_MODEL,
+        )
+        output: str = response[0]
+        context = response[1]
+        log.info(f"Sending message: '{output}'")
+        await repbot.get_channel(msg.channel.id).send(output)
+    else:
+        log.debug("Not responding message.")
 
 
 @repbot.event
 async def on_ready():
     log.info(f"Reputable Bot is online as {repbot.user}")
-    try:
-        default_channel = os.getenv("REPBOT_DEFAULT_CHANNEL_ID")
-        default_channel = int(default_channel)
-    except AttributeError as error:
-        default_channel = None
-        log.warning(
-            f"REPBOT_DEFAULT_CHANNEL_ID set to an invalid value (must be int): {default_channel}"
-        )
-    except TypeError as error:
-        default_channel = None
-        log.warning(
-            f"REPBOT_DEFAULT_CHANNEL_ID set to an invalid value (must be int): {default_channel}"
-        )
-    except NameError as error:
-        default_channel = None
-        log.warning(f"REPBOT_DEFAULT_CHANNEL_ID is not set!")
+    log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
 
-    if default_channel:
-        await repbot.get_channel(default_channel).send("Hello, meatbags!")
+    if not env.REPBOT_DEFAULT_CHANNEL_ID:
+        log.warn("REPBOT_DEFAULT_CHANNEL_ID is not set.")
+        channel: discord.TextChannel = random_channel()
     else:
-        log.info("No default channel selected, just grabbing the first one we find...")
-        channels = repbot.get_all_channels()
-        # Send a message in the first text channel we can find
-        for c in channels:
-            if type(c) is discord.TextChannel:
-                await repbot.get_channel(c.id).send("Hello, meatbags!")
-                break
+        try:
+            channel = repbot.get_channel(env.REPBOT_DEFAULT_CHANNEL_ID)
+            log.info(f"Default channel set: {channel.name} ({channel.id})")
+        except AttributeError:
+            log.warn(
+                f"REPBOT_DEFAULT_CHANNEL_ID is set to an invalid ID for this server: {env.REPBOT_DEFAULT_CHANNEL_ID}"
+            )
+            log.info(f"Available channels are: ")
+            for c in repbot.get_all_channels():
+                if type(c) is discord.TextChannel:
+                    log.info(f"\t{c.name}: {c.id}")
+            log.info(f"Selecting a random channel for now...")
+            channel: discord.TextChannel = random_channel()
+
+    await channel.send("Hey, meatbags!")
+    log.info(
+        f"Sent greeting message. Attention now focused on default channel: {channel.name}"
+    )
+    global channel_attention
+    channel_attention = channel
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    env.setup()
+    log.debug(env.REPBOT_DISCORD_API_TOKEN)
+    log.debug(env.REPBOT_DEFAULT_CHANNEL_ID)
+    log.debug(env.REPBOT_LOG_LEVEL)
+    log.debug(env.REPBOT_OLLAMA_URL)
+
+    logging.basicConfig(level=env.REPBOT_LOG_LEVEL)
     try:
-        repbot.run(os.getenv("DISCORD_API_TOKEN"))
-    except TypeError:
-        log.error(
-            f"Failed to authenticate with discord, DISCORD_API_TOKEN is unset or incorrect."
-        )
-        exit(1)
+        repbot.run(env.REPBOT_DISCORD_API_TOKEN)
     except discord.LoginFailure as error:
         log.error(f"Failed to authenticate with discord: {error}")
         log.error("Check your Discord API key is set correctly!")
