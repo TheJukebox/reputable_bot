@@ -37,12 +37,10 @@ async def generate_from_prompt(
         "system": system,
     }
     log.info(f"Sending request to ollama API...")
-    log.debug(f"Created generate payload: {payload}")
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url=f"{url}/api/generate", json=payload) as response:
 
             ollama_response = await response.json()
-            log.debug(f"Received response: {ollama_response}")
             log.info(f"Response received from ollama!")
             return (ollama_response["response"], ollama_response["context"])
