@@ -35,6 +35,9 @@ async def generate_from_prompt(
         "stream": False,
         "context": context,
         "system": system,
+        "option": {
+            "num_ctx": 1024,
+        }
     }
     log.info(f"Sending request to ollama API...")
 
