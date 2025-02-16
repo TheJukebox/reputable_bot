@@ -17,7 +17,7 @@ repbot: discord.Bot = discord.Bot(intents=intents)
 
 context: list = []
 
-RESPONSIVE_BASE = 75
+RESPONSIVE_BASE = 90
 RESPONSIVE_DURATION_BASE = 5
 
 channel_attention = 0
@@ -102,14 +102,14 @@ def should_respond(channel: discord.TextChannel) -> bool:
     log.debug(f"Deciding if we should respond... base chance is {respond_chance}")
     if channel == channel_attention:
         log.debug("This channel is our current focus - increasing response chance.")
-        respond_chance += 5
+        respond_chance -= 5
     if responsive_duration > 0:
         log.debug("We're still feeling chatty - increasing response chance.")
-        respond_chance += 5
+        respond_chance -= 5
     log.debug(
-        f"Randomly determining if we should respond with a ~{respond_chance}% chance..."
+        f"Randomly determining if we should respond with a ~{100 - respond_chance}% chance..."
     )
-    if random.randint(1, 100) > respond_chance:
+    if random.randint(1, 100) >= respond_chance:
         responsive_duration -= 1
         return True
     else:
