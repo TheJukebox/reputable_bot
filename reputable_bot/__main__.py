@@ -19,11 +19,10 @@ repbot: discord.Bot = discord.Bot(intents=intents)
 
 context: list = []
 
-RESPONSIVE_BASE = 90
+RESPONSIVE_BASE = 70
 RESPONSIVE_DURATION_BASE = 5
 
 channel_attention = 0
-responsive_boost = 20
 responsive_duration = RESPONSIVE_DURATION_BASE
 responsive_ignore_channels = set()
 responsive_ignore_user = set()
@@ -63,7 +62,7 @@ async def slap(ctx: discord.ApplicationCommand):
 
             await ctx.response.defer()
             response = await ollama.generate_from_prompt(
-                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}",
+                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...",
                 url=env.REPBOT_OLLAMA_URL,
                 context=context,
                 model=env.REPBOT_DEFAULT_MODEL,
@@ -165,10 +164,10 @@ def should_respond(channel: discord.TextChannel) -> bool:
         respond_chance -= 5
     if responsive_duration > 0:
         log.debug("We're still feeling chatty - increasing response chance.")
-        respond_chance -= 5
+        respond_chance -= 2 * responsive_duration
     if channel in responsive_ignore_channels:
         log.debug("We've been slapped here, we probably shouldn't chat...")
-        respond_chance += 50
+        respond_chance += 25
     log.debug(
         f"Randomly determining if we should respond with a ~{100 - respond_chance}% chance..."
     )
