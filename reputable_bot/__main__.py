@@ -3,7 +3,7 @@ import logging
 
 from . import ollama
 from . import env
-from . import utils 
+from . import utils
 
 import discord
 from discord import default_permissions
@@ -25,6 +25,8 @@ RESPONSIVE_DURATION_BASE = 5
 channel_attention = 0
 responsive_boost = 20
 responsive_duration = RESPONSIVE_DURATION_BASE
+responsive_ignore_channels = set()
+responsive_ignore_user = set()
 
 
 def random_channel() -> discord.TextChannel:
@@ -37,7 +39,44 @@ def random_channel() -> discord.TextChannel:
     ).id
     return repbot.get_channel(id)
 
-@repbot.slash_command(name="train", description="Fetches (n) messages from the current channel and converts them to training data.")
+
+@repbot.slash_command(
+    name="ignore",
+    description="Tells repbot to ignore you. You can get his attention with /wave",
+)
+async def ignore(ctx: discord.ApplicationCommand):
+    responsive_ignore_user.add(ctx.author)
+    log.info("Ignoring {ctx.author}.")
+    await ctx.respond("I'll ignore you until you give me a wave.")
+
+
+@repbot.slash_command(name="slap", description="Puts repbot in his place")
+async def slap(ctx: discord.ApplicationCommand):
+    if type(ctx.channel) is not discord.TextChannel:
+        return
+    else:
+        log.debug(f"{ctx.author} used /slap")
+        responsive_ignore_channels.add(ctx.channel)
+        channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
+        if channel:
+            global context
+
+            await ctx.response.defer()
+            response = await ollama.generate_from_prompt(
+                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}",
+                url=env.REPBOT_OLLAMA_URL,
+                context=context,
+                model=env.REPBOT_DEFAULT_MODEL,
+            )
+            output: str = response[0]
+            context = response[1]
+            await ctx.respond(output)
+
+
+@repbot.slash_command(
+    name="train",
+    description="Fetches (n) messages from the current channel and converts them to training data.",
+)
 @default_permissions(administrator=True)
 async def train(ctx: discord.ApplicationCommand, n: int):
     if type(ctx.channel) is not discord.TextChannel:
@@ -48,6 +87,7 @@ async def train(ctx: discord.ApplicationCommand, n: int):
         path = await utils.write_alpaca_training_data(ctx.channel, n)
         log.info(f"Wrote training data to {path}!")
         await ctx.respond("mmm yum mmm yummy yum data mmmf")
+
 
 @repbot.slash_command(name="hey", description="Speak to repbot")
 async def hey(ctx: discord.ApplicationContext, msg: str):
@@ -98,6 +138,13 @@ async def wave(ctx: discord.ApplicationContext):
         global context
 
         await ctx.response.defer()
+        log.info("Updating responsiveness ignore lists...")
+        if ctx.channel in responsive_ignore_channels:
+            responsive_ignore_channels.remove(ctx.channel)
+        if ctx.author in responsive_ignore_user:
+            responsive_ignore_user.remove(ctx.author)
+        log.debug(responsive_ignore_channels)
+        log.debug(responsive_ignore_user)
         response = await ollama.generate_from_prompt(
             prompt=f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention",
             url=env.REPBOT_OLLAMA_URL,
@@ -119,6 +166,9 @@ def should_respond(channel: discord.TextChannel) -> bool:
     if responsive_duration > 0:
         log.debug("We're still feeling chatty - increasing response chance.")
         respond_chance -= 5
+    if channel in responsive_ignore_channels:
+        log.debug("We've been slapped here, we probably shouldn't chat...")
+        respond_chance += 50
     log.debug(
         f"Randomly determining if we should respond with a ~{100 - respond_chance}% chance..."
     )
@@ -133,7 +183,7 @@ def should_respond(channel: discord.TextChannel) -> bool:
 async def on_message(msg: discord.Message):
     global context
 
-    if msg.author == repbot.user:
+    if msg.author == repbot.user or msg.author in responsive_ignore_user:
         return
 
     if repbot.user in msg.mentions:
