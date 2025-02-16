@@ -3,8 +3,10 @@ import logging
 
 from . import ollama
 from . import env
+from . import utils 
 
 import discord
+from discord import default_permissions
 from discord.abc import GuildChannel, PrivateChannel
 
 log = logging.getLogger(__name__)
@@ -35,6 +37,17 @@ def random_channel() -> discord.TextChannel:
     ).id
     return repbot.get_channel(id)
 
+@repbot.slash_command(name="train", description="Fetches (n) messages from the current channel and converts them to training data.")
+@default_permissions(administrator=True)
+async def train(ctx: discord.ApplicationCommand, n: int):
+    if type(ctx.channel) is not discord.TextChannel:
+        await ctx.respond("This isn't a text channel, ya numpty")
+    else:
+        await ctx.response.defer()
+        log.info("Writing training data to file...")
+        path = await utils.write_alpaca_training_data(ctx.channel, n)
+        log.info(f"Wrote training data to {path}!")
+        await ctx.respond("mmm yum mmm yummy yum data mmmf")
 
 @repbot.slash_command(name="hey", description="Speak to repbot")
 async def hey(ctx: discord.ApplicationContext, msg: str):
