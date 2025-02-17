@@ -9,7 +9,7 @@ import discord
 from discord import default_permissions
 from discord.abc import GuildChannel, PrivateChannel
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("repbot")
 
 intents: discord.Intents = discord.Intents.default()
 intents.typing = True
@@ -62,7 +62,7 @@ async def slap(ctx: discord.ApplicationCommand):
 
             await ctx.response.defer()
             response = await ollama.generate_from_prompt(
-                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...",
+                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...\n Repbot:",
                 url=env.REPBOT_OLLAMA_URL,
                 context=context,
                 model=env.REPBOT_DEFAULT_MODEL,
@@ -83,7 +83,7 @@ async def train(ctx: discord.ApplicationCommand, n: int):
     else:
         await ctx.response.defer()
         log.info("Writing training data to file...")
-        path = await utils.write_alpaca_training_data(ctx.channel, n)
+        path = await utils.write_message_data(ctx.channel, n)
         log.info(f"Wrote training data to {path}!")
         await ctx.respond("mmm yum mmm yummy yum data mmmf")
 
@@ -98,7 +98,7 @@ async def hey(ctx: discord.ApplicationContext, msg: str):
         log.debug(f"{ctx.author}: {msg}")
         await ctx.response.defer()
         response = await ollama.generate_from_prompt(
-            prompt=f"{ctx.author.display_name}: {msg}",
+            prompt=f"{msg}",
             url=env.REPBOT_OLLAMA_URL,
             context=context,
             model=env.REPBOT_DEFAULT_MODEL,
@@ -145,7 +145,7 @@ async def wave(ctx: discord.ApplicationContext):
         log.debug(responsive_ignore_channels)
         log.debug(responsive_ignore_user)
         response = await ollama.generate_from_prompt(
-            prompt=f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention",
+            prompt=f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention\nRepbot:",
             url=env.REPBOT_OLLAMA_URL,
             context=context,
             model=env.REPBOT_DEFAULT_MODEL,
@@ -189,7 +189,7 @@ async def on_message(msg: discord.Message):
         log.info("Repbot was mentioned in a message.")
         log.info("Generating a response!")
         response = await ollama.generate_from_prompt(
-            prompt=f"{msg.author.display_name}: {msg.content}",
+            prompt=f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nRepbot:",
             url=env.REPBOT_OLLAMA_URL,
             context=context,
             model=env.REPBOT_DEFAULT_MODEL,
@@ -201,7 +201,7 @@ async def on_message(msg: discord.Message):
     elif should_respond(msg.channel):
         log.info("Responding to random message.")
         response = await ollama.generate_from_prompt(
-            prompt=f"{msg.author.display_name}: {msg.content}",
+            prompt=f"{msg.author.display_name}: \nRepbot:",
             url=env.REPBOT_OLLAMA_URL,
             context=context,
             model=env.REPBOT_DEFAULT_MODEL,
@@ -220,14 +220,14 @@ async def on_ready():
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
 
     if not env.REPBOT_DEFAULT_CHANNEL_ID:
-        log.warn("REPBOT_DEFAULT_CHANNEL_ID is not set.")
+        log.warning("REPBOT_DEFAULT_CHANNEL_ID is not set.")
         channel: discord.TextChannel = random_channel()
     else:
         try:
             channel = repbot.get_channel(env.REPBOT_DEFAULT_CHANNEL_ID)
             log.info(f"Default channel set: {channel.name} ({channel.id})")
         except AttributeError:
-            log.warn(
+            log.warning(
                 f"REPBOT_DEFAULT_CHANNEL_ID is set to an invalid ID for this server: {env.REPBOT_DEFAULT_CHANNEL_ID}"
             )
             log.info(f"Available channels are: ")
@@ -247,12 +247,15 @@ async def on_ready():
 
 if __name__ == "__main__":
     env.setup()
-    log.debug(env.REPBOT_DISCORD_API_TOKEN)
-    log.debug(env.REPBOT_DEFAULT_CHANNEL_ID)
-    log.debug(env.REPBOT_LOG_LEVEL)
-    log.debug(env.REPBOT_OLLAMA_URL)
-
     logging.basicConfig(level=env.REPBOT_LOG_LEVEL)
+    log.info("🤖 Environment initialised! 🤖")
+    log.info(f"🗒️ Log level: {env.REPBOT_LOG_LEVEL}")
+    log.info(f"📻 Default channel ID: {env.REPBOT_DEFAULT_CHANNEL_ID}")
+    log.info(f"🦙 Ollama URL: {env.REPBOT_OLLAMA_URL}")
+    log.info(f"👤 Default model: {env.REPBOT_DEFAULT_MODEL}")
+    log.info(f"🧠 System message: {env.REPBOT_SYSTEM_MESSAGE}")
+    log.info("Happy shitposting!")
+
     try:
         repbot.run(env.REPBOT_DISCORD_API_TOKEN)
     except discord.LoginFailure as error:
