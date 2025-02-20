@@ -7,7 +7,6 @@ from . import utils
 
 import discord
 from discord import default_permissions
-from discord.abc import GuildChannel, PrivateChannel
 
 log = logging.getLogger("repbot")
 
@@ -19,7 +18,7 @@ repbot: discord.Bot = discord.Bot(intents=intents)
 
 context: list = []
 
-RESPONSIVE_BASE = 70
+RESPONSIVE_BASE = 85
 RESPONSIVE_DURATION_BASE = 5
 
 channel_attention = 0
@@ -45,7 +44,7 @@ def random_channel() -> discord.TextChannel:
 )
 async def ignore(ctx: discord.ApplicationCommand):
     responsive_ignore_user.add(ctx.author)
-    log.info("Ignoring {ctx.author}.")
+    log.info(f"Ignoring {ctx.author}.")
     await ctx.respond("I'll ignore you until you give me a wave.")
 
 
@@ -165,16 +164,19 @@ def should_respond(channel: discord.TextChannel) -> bool:
     if responsive_duration > 0:
         log.debug("We're still feeling chatty - increasing response chance.")
         respond_chance -= 2 * responsive_duration
+        responsive_duration -= 1
     if channel in responsive_ignore_channels:
         log.debug("We've been slapped here, we probably shouldn't chat...")
         respond_chance += 25
     log.debug(
         f"Randomly determining if we should respond with a ~{100 - respond_chance}% chance..."
     )
-    if random.randint(1, 100) >= respond_chance:
-        responsive_duration -= 1
+    chance = random.randint(1, 100)
+    if chance >= respond_chance:
+        log.debug(f"Got {chance}/{respond_chance} and decided to respond.")
         return True
     else:
+        log.debug(f"Got {chance}/{respond_chance} and decided not to respond.")
         return False
 
 
