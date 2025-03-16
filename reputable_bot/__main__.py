@@ -1,10 +1,12 @@
 import random
 import logging
+import asyncio
 
 from . import ollama
 from . import env
 from . import utils
 
+import markovify
 import discord
 from discord import default_permissions
 
@@ -26,6 +28,9 @@ responsive_duration = RESPONSIVE_DURATION_BASE
 responsive_ignore_channels = set()
 responsive_ignore_user = set()
 
+background_tasks = set()
+channel_caches = {}
+
 
 def random_channel() -> discord.TextChannel:
     id = random.choice(
@@ -38,6 +43,79 @@ def random_channel() -> discord.TextChannel:
     return repbot.get_channel(id)
 
 
+async def cache_messages():
+    log.info("Caching messages...")
+    for channel in repbot.get_all_channels():
+        if type(channel) is discord.TextChannel:
+            log.info(f"Caching messages from {channel.name} ({channel.id}).")
+            try:
+                channel_caches[channel.id] = [
+                    message["content"]
+                    async for message in utils.fetch_messages(channel, 200)
+                ]
+                log.info(f"Finished caching messages from {channel.name} ({channel.id})!")
+            except discord.errors.Forbidden:
+                log.info(f"Forbidden from accessing channel {channel.name} ({channel.id})!")
+
+
+async def routine_cache_messages():
+    while True:
+        await cache_messages()
+        await asyncio.sleep(300)
+
+
+@repbot.slash_command(name="markov", description="Generate a markov chain from chat.")
+async def markov(ctx: discord.ApplicationCommand):
+    log.info("Creating markov chain...")
+    await ctx.response.defer()
+    log.info("Fetching messages...")
+    if ctx.channel_id not in channel_caches.keys():
+        channel_caches[ctx.channel_id] = [
+            message["content"]
+            async for message in utils.fetch_messages(ctx.channel, 5000)
+        ]
+    else:
+        messages = channel_caches[ctx.channel_id]
+    pool = "\n".join(messages)
+    log.info("Generating text...")
+    model = markovify.Text(pool)
+    result = model.make_short_sentence(2000)
+    log.info(f"Got result: {result}")
+    await ctx.respond(result)
+
+
+@repbot.slash_command(name="think", description="Make repbot think a powerful thought.")
+async def think(ctx: discord.ApplicationCommand):
+    log.info("Thinking about markov chain...")
+    global context
+    await ctx.response.defer()
+    log.info("Fetching messages...")
+    if ctx.channel_id not in channel_caches.keys():
+        channel_caches[ctx.channel_id] = [
+            message["content"]
+            async for message in utils.fetch_messages(ctx.channel, 5000)
+        ]
+    else:
+        messages = channel_caches[ctx.channel_id]
+    pool = "\n".join(messages)
+    log.info("Generating text...")
+    model = markovify.Text(pool)
+    result = model.make_short_sentence(100)
+    log.info(f"Got result: {result}")
+    log.info("Thinking about it...")
+    response = await ollama.generate_from_prompt(
+        prompt=f"Repbot thinks: *{result}*\n\nRepbot:",
+        url=env.REPBOT_OLLAMA_URL,
+        context=context,
+        model=env.REPBOT_DEFAULT_MODEL,
+    )
+    log.info(f"Generated response: {response[0]}")
+    output: str = f"*Repbot thinks: '{result}'*\n\n{response[0]}"
+    log.info(f"Responding with: {output}")
+    context = response[1]
+    await ctx.respond(output)
+
+
 @repbot.slash_command(
     name="ignore",
     description="Tells repbot to ignore you. You can get his attention with /wave",
@@ -46,29 +124,6 @@ async def ignore(ctx: discord.ApplicationCommand):
     responsive_ignore_user.add(ctx.author)
     log.info(f"Ignoring {ctx.author}.")
     await ctx.respond("I'll ignore you until you give me a wave.")
-
-
-@repbot.slash_command(name="slap", description="Puts repbot in his place")
-async def slap(ctx: discord.ApplicationCommand):
-    if type(ctx.channel) is not discord.TextChannel:
-        return
-    else:
-        log.debug(f"{ctx.author} used /slap")
-        responsive_ignore_channels.add(ctx.channel)
-        channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
-        if channel:
-            global context
-
-            await ctx.response.defer()
-            response = await ollama.generate_from_prompt(
-                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...\n Repbot:",
-                url=env.REPBOT_OLLAMA_URL,
-                context=context,
-                model=env.REPBOT_DEFAULT_MODEL,
-            )
-            output: str = response[0]
-            context = response[1]
-            await ctx.respond(output)
 
 
 @repbot.slash_command(
@@ -152,6 +207,29 @@ async def wave(ctx: discord.ApplicationContext):
         output: str = response[0]
         context = response[1]
         await ctx.respond(output)
+
+
+@repbot.slash_command(name="slap", description="Puts repbot in his place")
+async def slap(ctx: discord.ApplicationCommand):
+    if type(ctx.channel) is not discord.TextChannel:
+        return
+    else:
+        log.debug(f"{ctx.author} used /slap")
+        responsive_ignore_channels.add(ctx.channel)
+        channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
+        if channel:
+            global context
+
+            await ctx.response.defer()
+            response = await ollama.generate_from_prompt(
+                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...\n Repbot:",
+                url=env.REPBOT_OLLAMA_URL,
+                context=context,
+                model=env.REPBOT_DEFAULT_MODEL,
+            )
+            output: str = response[0]
+            context = response[1]
+            await ctx.respond(output)
 
 
 def should_respond(channel: discord.TextChannel) -> bool:
@@ -238,6 +316,12 @@ async def on_ready():
                     log.info(f"\t{c.name}: {c.id}")
             log.info(f"Selecting a random channel for now...")
             channel: discord.TextChannel = random_channel()
+
+    log.info("Gathering channel cache...")
+    await cache_messages()
+    log.info("Starting cache routine.")
+    caching_task = asyncio.create_task(routine_cache_messages())
+    background_tasks.add(caching_task)
 
     await channel.send("Hey, meatbags!")
     log.info(
