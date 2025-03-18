@@ -5,6 +5,7 @@ import asyncio
 from . import ollama
 from . import env
 from . import utils
+from . import dungeon
 
 import markovify
 import discord
@@ -25,7 +26,8 @@ RESPONSIVE_DURATION_BASE = 5
 
 channel_attention = 0
 responsive_duration = RESPONSIVE_DURATION_BASE
-responsive_ignore_channels = set()
+responsive_disliked_channels = set()
+responsive_ignored_channels = set()
 responsive_ignore_user = set()
 
 background_tasks = set()
@@ -46,22 +48,42 @@ def random_channel() -> discord.TextChannel:
 async def cache_messages():
     log.info("Caching messages...")
     for channel in repbot.get_all_channels():
-        if type(channel) is discord.TextChannel:
+        if type(channel) is discord.TextChannel and channel:
             log.info(f"Caching messages from {channel.name} ({channel.id}).")
             try:
                 channel_caches[channel.id] = [
                     message["content"]
                     async for message in utils.fetch_messages(channel, 200)
                 ]
-                log.info(f"Finished caching messages from {channel.name} ({channel.id})!")
+                log.info(
+                    f"Finished caching messages from {channel.name} ({channel.id})!"
+                )
             except discord.errors.Forbidden:
-                log.info(f"Forbidden from accessing channel {channel.name} ({channel.id})!")
+                log.info(
+                    f"Forbidden from accessing channel {channel.name} ({channel.id})!"
+                )
 
 
 async def routine_cache_messages():
     while True:
         await cache_messages()
         await asyncio.sleep(300)
+
+
+async def handle_message(prompt: str, update_context: bool = False) -> str:
+    global context
+    response = await ollama.generate_from_prompt(
+        prompt=prompt,
+        context=context,
+        url=env.REPBOT_OLLAMA_URL,
+        model=env.REPBOT_DEFAULT_MODEL,
+        system=env.REPBOT_SYSTEM_MESSAGE,
+    )
+
+    if update_context:
+        context = response[1]
+
+    return response[0]
 
 
 @repbot.slash_command(name="markov", description="Generate a markov chain from chat.")
@@ -86,6 +108,7 @@ async def markov(ctx: discord.ApplicationCommand):
 
 @repbot.slash_command(name="think", description="Make repbot think a powerful thought.")
 async def think(ctx: discord.ApplicationCommand):
+    # Create a markov model from cache
     log.info("Thinking about markov chain...")
     global context
     await ctx.response.defer()
@@ -98,21 +121,21 @@ async def think(ctx: discord.ApplicationCommand):
     else:
         messages = channel_caches[ctx.channel_id]
     pool = "\n".join(messages)
+
+    # Generate a chain
     log.info("Generating text...")
     model = markovify.Text(pool)
     result = model.make_short_sentence(100)
     log.info(f"Got result: {result}")
+
+    # Think about the chain with the LLM
     log.info("Thinking about it...")
-    response = await ollama.generate_from_prompt(
-        prompt=f"Repbot thinks: *{result}*\n\nRepbot:",
-        url=env.REPBOT_OLLAMA_URL,
-        context=context,
-        model=env.REPBOT_DEFAULT_MODEL,
-    )
-    log.info(f"Generated response: {response[0]}")
-    output: str = f"*Repbot thinks: '{result}'*\n\n{response[0]}"
+    response: str = await handle_message(f"Repbot thinks: *{result}*\n\nreputablebot: ", True)
+    log.info(f"Generated response: {response}")
+
+    # Respond via the command context
+    output: str = f"*Repbot thinks: '{result}'*\n\n{response}"
     log.info(f"Responding with: {output}")
-    context = response[1]
     await ctx.respond(output)
 
 
@@ -142,39 +165,31 @@ async def train(ctx: discord.ApplicationCommand, n: int):
         await ctx.respond("mmm yum mmm yummy yum data mmmf")
 
 
+@repbot.slash_command(
+    name="newdungeon",
+    description="Resets reputable dungeon. WARNING: Repbot forgets EVERYTHING about the current round.",
+)
+async def new_dungeon(ctx: discord.ApplicationCommand):
+    if ctx.channel.id != env.REPBOT_DUNGEON_CHANNEL_ID:
+        await ctx.respond(
+            f"This command only works in {repbot.get_channel(env.REPBOT_DUNGEON_CHANNEL_ID).jump_url}"
+        )
+    else:
+        await ctx.respond("## 🔄 Resetting the table! 🔄")
+        await dungeon.init_dungeon(repbot.get_channel(env.REPBOT_DUNGEON_CHANNEL_ID))
+
+
 @repbot.slash_command(name="hey", description="Speak to repbot")
 async def hey(ctx: discord.ApplicationContext, msg: str):
     log.debug(f"{ctx.author} used /hey")
     channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
     if channel:
-        global context
-
         log.debug(f"{ctx.author}: {msg}")
         await ctx.response.defer()
-        response = await ollama.generate_from_prompt(
-            prompt=f"{msg}",
-            url=env.REPBOT_OLLAMA_URL,
-            context=context,
-            model=env.REPBOT_DEFAULT_MODEL,
+        response: str = await handle_message(msg, True)
+        await ctx.send_followup(
+            f"_{ctx.author.display_name} said, '{msg}'_\n\n{response}"
         )
-        output: str = response[0]
-        context = response[1]
-
-        # TODO: fix chunks
-        if len(output) < 2000:
-            log.debug(f"Responding with: {output}")
-            await ctx.send_followup(
-                f"_{ctx.author.display_name} said, '{msg}'_\n\n{output}"
-            )
-        else:
-            chunks = [output[i : i + 2000] for i in range(0, len(output), 2000)]
-            await ctx.send_followup(
-                f"_{ctx.author.display_name} said, '{output}'_\n\n{chunks[0]}"
-            )
-            log.debug(f"Responding with: {chunks[0]}")
-            for chunk in chunks[1:]:
-                log.debug(f"Responding with: {chunk}")
-                await repbot.get_channel(ctx.channel_id).send(chunk)
 
 
 @repbot.slash_command(name="wave", description="Wave at repbot to get his attention.")
@@ -192,21 +207,17 @@ async def wave(ctx: discord.ApplicationContext):
 
         await ctx.response.defer()
         log.info("Updating responsiveness ignore lists...")
-        if ctx.channel in responsive_ignore_channels:
-            responsive_ignore_channels.remove(ctx.channel)
+        if ctx.channel in responsive_disliked_channels:
+            responsive_disliked_channels.remove(ctx.channel)
         if ctx.author in responsive_ignore_user:
             responsive_ignore_user.remove(ctx.author)
-        log.debug(responsive_ignore_channels)
+        log.debug(responsive_disliked_channels)
         log.debug(responsive_ignore_user)
-        response = await ollama.generate_from_prompt(
-            prompt=f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention\nRepbot:",
-            url=env.REPBOT_OLLAMA_URL,
-            context=context,
-            model=env.REPBOT_DEFAULT_MODEL,
+        response: str = await handle_message(
+            f"{ctx.author.display_name} waves at repbot from the #{ctx.channel.name} channel to get his attention\nreputablebot: ",
+            True,
         )
-        output: str = response[0]
-        context = response[1]
-        await ctx.respond(output)
+        await ctx.respond(response)
 
 
 @repbot.slash_command(name="slap", description="Puts repbot in his place")
@@ -215,21 +226,15 @@ async def slap(ctx: discord.ApplicationCommand):
         return
     else:
         log.debug(f"{ctx.author} used /slap")
-        responsive_ignore_channels.add(ctx.channel)
+        responsive_disliked_channels.add(ctx.channel)
         channel = repbot.get_channel(ctx.channel_id) if ctx.channel_id else None
         if channel:
-            global context
-
             await ctx.response.defer()
-            response = await ollama.generate_from_prompt(
-                prompt=f"{ctx.author.display_name} slaps repbot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...\n Repbot:",
-                url=env.REPBOT_OLLAMA_URL,
-                context=context,
-                model=env.REPBOT_DEFAULT_MODEL,
+            response: str = await handle_message(
+                f"{ctx.author.display_name} slaps reputablebot in the face so he shuts the fuck up in #{ctx.channel.name}. They must have really hated something repbot said...\nreputablebot: ",
+                True,
             )
-            output: str = response[0]
-            context = response[1]
-            await ctx.respond(output)
+            await ctx.respond(response)
 
 
 def should_respond(channel: discord.TextChannel) -> bool:
@@ -243,7 +248,7 @@ def should_respond(channel: discord.TextChannel) -> bool:
         log.debug("We're still feeling chatty - increasing response chance.")
         respond_chance -= 2 * responsive_duration
         responsive_duration -= 1
-    if channel in responsive_ignore_channels:
+    if channel in responsive_disliked_channels:
         log.debug("We've been slapped here, we probably shouldn't chat...")
         respond_chance += 25
     log.debug(
@@ -260,36 +265,36 @@ def should_respond(channel: discord.TextChannel) -> bool:
 
 @repbot.listen()
 async def on_message(msg: discord.Message):
-    global context
+    if msg.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and msg.author != repbot.user:
+        if msg.content[0] in ["#", "!", "/"]:
+            return
+        await dungeon.on_message(msg)
 
     if msg.author == repbot.user or msg.author in responsive_ignore_user:
+        return
+
+    if msg.channel in responsive_ignored_channels:
         return
 
     if repbot.user in msg.mentions:
         log.info("Repbot was mentioned in a message.")
         log.info("Generating a response!")
-        response = await ollama.generate_from_prompt(
-            prompt=f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nRepbot:",
-            url=env.REPBOT_OLLAMA_URL,
-            context=context,
-            model=env.REPBOT_DEFAULT_MODEL,
-        )
-        output: str = response[0]
-        context = response[1]
-        log.info(f"Responding with: '{output}'")
-        await repbot.get_channel(msg.channel.id).send(output)
+        async with msg.channel.typing():
+            response = await handle_message(
+                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
+                True,
+            )
+            log.info(f"Responding with: '{response}'")
+            await msg.channel.send(response)
     elif should_respond(msg.channel):
         log.info("Responding to random message.")
-        response = await ollama.generate_from_prompt(
-            prompt=f"{msg.author.display_name}: \nRepbot:",
-            url=env.REPBOT_OLLAMA_URL,
-            context=context,
-            model=env.REPBOT_DEFAULT_MODEL,
-        )
-        output: str = response[0]
-        context = response[1]
-        log.info(f"Sending message: '{output}'")
-        await repbot.get_channel(msg.channel.id).send(output)
+        async with msg.channel.typing():
+            response = await handle_message(
+                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
+                True,
+            )
+            log.info(f"Responding with: '{response}'")
+            await msg.channel.send(response)
     else:
         log.debug("Not responding message.")
 
@@ -330,6 +335,15 @@ async def on_ready():
     global channel_attention
     channel_attention = channel
 
+    log.info("Setting up reputable dungeon...")
+    if not env.REPBOT_DUNGEON_CHANNEL_ID:
+        log.warning("No dungeon channel set")
+    else:
+        log.info("doin it")
+        dungeon_channel = repbot.get_channel(env.REPBOT_DUNGEON_CHANNEL_ID)
+        responsive_ignored_channels.add(dungeon_channel)
+        await dungeon.init_dungeon(dungeon_channel)
+
 
 if __name__ == "__main__":
     env.setup()
@@ -337,6 +351,7 @@ if __name__ == "__main__":
     log.info("🤖 Environment initialised! 🤖")
     log.info(f"🗒️ Log level: {env.REPBOT_LOG_LEVEL}")
     log.info(f"📻 Default channel ID: {env.REPBOT_DEFAULT_CHANNEL_ID}")
+    log.info(f"🧙 Dungeon channel ID: {env.REPBOT_DUNGEON_CHANNEL_ID}")
     log.info(f"🦙 Ollama URL: {env.REPBOT_OLLAMA_URL}")
     log.info(f"👤 Default model: {env.REPBOT_DEFAULT_MODEL}")
     log.info(f"🧠 System message: {env.REPBOT_SYSTEM_MESSAGE}")

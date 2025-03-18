@@ -5,6 +5,7 @@ log = logging.getLogger("repbot")
 
 REPBOT_DISCORD_API_TOKEN: str | None = None
 REPBOT_DEFAULT_CHANNEL_ID: str | int | None = None
+REPBOT_DUNGEON_CHANNEL_ID: str | int | None = None
 REPBOT_LOG_LEVEL: str | int | None = None
 REPBOT_OLLAMA_URL: str | None = None
 REPBOT_DEFAULT_MODEL: str | None = None
@@ -15,6 +16,7 @@ REPBOT_CONTEXT_WINDOW: str | None = None
 def setup():
     global REPBOT_DISCORD_API_TOKEN
     global REPBOT_DEFAULT_CHANNEL_ID
+    global REPBOT_DUNGEON_CHANNEL_ID
     global REPBOT_LOG_LEVEL
     global REPBOT_OLLAMA_URL
     global REPBOT_DEFAULT_MODEL
@@ -23,6 +25,7 @@ def setup():
 
     REPBOT_DISCORD_API_TOKEN = os.getenv("REPBOT_DISCORD_API_TOKEN")
     REPBOT_DEFAULT_CHANNEL_ID = os.getenv("REPBOT_DEFAULT_CHANNEL_ID")
+    REPBOT_DUNGEON_CHANNEL_ID = os.getenv("REPBOT_DUNGEON_CHANNEL_ID")
     REPBOT_LOG_LEVEL = os.getenv("REPBOT_LOG_LEVEL")
     REPBOT_OLLAMA_URL = os.getenv("REPBOT_OLLAMA_URL")
     REPBOT_DEFAULT_MODEL = os.getenv("REPBOT_DEFAULT_MODEL")
@@ -46,7 +49,9 @@ def setup():
         try:
             REPBOT_CONTEXT_WINDOW = int(REPBOT_CONTEXT_WINDOW)
         except ValueError:
-            log.warning("REPBOT_CONTEXT_WINDOW was not set to a valid integer. Defaulting to 2048 tokens.")
+            log.warning(
+                "REPBOT_CONTEXT_WINDOW was not set to a valid integer. Defaulting to 2048 tokens."
+            )
             REPBOT_CONTEXT_WINDOW = None
     if not REPBOT_CONTEXT_WINDOW:
         REPBOT_CONTEXT_WINDOW = 2048
@@ -84,3 +89,15 @@ def setup():
                 "REPBOT_DEFAULT_CHANNEL_ID is not set to a valid integer. The bot will join a channel randomly to announce itself."
             )
             REPBOT_DEFAULT_CHANNEL_ID = None
+
+    if not REPBOT_DUNGEON_CHANNEL_ID:
+        log.warning("REPBOT_DUNGEON_CHANNEL_ID is not set. This feature is disabled.")
+        REPBOT_DUNGEON_CHANNEL_ID = None
+    else:
+        try:
+            REPBOT_DUNGEON_CHANNEL_ID = int(REPBOT_DUNGEON_CHANNEL_ID)
+        except ValueError:
+            log.warning(
+                "REPBOT_DUNGEON_CHANNEL_ID is not set to a valid integer. This feature is disabled."
+            )
+            REPBOT_DUNGEON_CHANNEL_ID = None

@@ -17,10 +17,9 @@ async def generate_from_prompt(
     prompt: str,
     url: str,
     context: list = [],
+    system: str = "",
     model: str = "llama3.1:8b",
 ) -> tuple[str, list]:
-
-    system = env.REPBOT_SYSTEM_MESSAGE
 
     log.info("Generating completion with:")
     log.info(f"System: {system}")
@@ -34,6 +33,7 @@ async def generate_from_prompt(
         "context": context,
         "system": system,
         "option": {
+            "num_predict": 10,
             "num_ctx": env.REPBOT_CONTEXT_WINDOW,
             "temperature": 0.9,
             "repeat_last_n": -1,
