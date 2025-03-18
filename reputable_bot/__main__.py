@@ -1,11 +1,13 @@
 import random
 import logging
 import asyncio
+from pathlib import Path
 
-from . import ollama
-from . import env
-from . import utils
+from . import chat
 from . import dungeon
+from . import env
+from . import ollama
+from . import utils
 
 import markovify
 import discord
@@ -303,6 +305,9 @@ async def on_message(msg: discord.Message):
 async def on_ready():
     log.info(f"Reputable Bot is online as {repbot.user}")
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
+    
+    log.info("Initialising chat...")
+    await chat.init(Path("context.json"))
 
     if not env.REPBOT_DEFAULT_CHANNEL_ID:
         log.warning("REPBOT_DEFAULT_CHANNEL_ID is not set.")

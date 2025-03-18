@@ -224,3 +224,6 @@ tags
 *.vsix
 
 .env
+
+# repbot
+context.json
