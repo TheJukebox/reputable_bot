@@ -1,20 +1,21 @@
-import logging
 import random
 
 from . import env
 from . import ollama
+from . import logging
 
 
 import markovify
 from discord import TextChannel
 from discord import Message
 
-log = logging.getLogger("reputable_dungeon")
+log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 context: list[int] = []
 system: str
 
-readme: str = """
+readme: str = r"""
 ```
         ,  ,  _,,    _, _,  , ,  _,    ___,_,. 
         | ,| /_,|   /  / \,|\/| /_,   ' | / \, 
@@ -121,7 +122,7 @@ async def init_dungeon(channel: TextChannel):
 async def on_message(msg: Message):
     global context
     log.info(f"Received message from {msg.author.display_name}: {msg.content}")
-    chance: int = random.randint(0,100)
+    chance: int = random.randint(0, 100)
     hints: list[str] = [
         "Foreshadow a combat encounter",
         "Foreshadow a trap",

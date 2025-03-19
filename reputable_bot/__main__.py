@@ -1,17 +1,18 @@
 import random
-import logging
-import asyncio
+from pathlib import Path
 
-from . import ollama
+from . import logging
 from . import env
-from . import utils
+from . import chat
 from . import dungeon
+from . import ollama
+from . import utils
 
 import markovify
 import discord
 from discord import default_permissions
 
-log = logging.getLogger("repbot")
+log = logging.setup_log("reputablebot")
 
 intents: discord.Intents = discord.Intents.default()
 intents.typing = True
@@ -27,11 +28,8 @@ RESPONSIVE_DURATION_BASE = 5
 channel_attention = 0
 responsive_duration = RESPONSIVE_DURATION_BASE
 responsive_disliked_channels = set()
-responsive_ignored_channels = set()
+chat.ignored_channels = set()
 responsive_ignore_user = set()
-
-background_tasks = set()
-channel_caches = {}
 
 
 def random_channel() -> discord.TextChannel:
@@ -43,31 +41,6 @@ def random_channel() -> discord.TextChannel:
         ]
     ).id
     return repbot.get_channel(id)
-
-
-async def cache_messages():
-    log.info("Caching messages...")
-    for channel in repbot.get_all_channels():
-        if type(channel) is discord.TextChannel and channel:
-            log.info(f"Caching messages from {channel.name} ({channel.id}).")
-            try:
-                channel_caches[channel.id] = [
-                    message["content"]
-                    async for message in utils.fetch_messages(channel, 200)
-                ]
-                log.info(
-                    f"Finished caching messages from {channel.name} ({channel.id})!"
-                )
-            except discord.errors.Forbidden:
-                log.info(
-                    f"Forbidden from accessing channel {channel.name} ({channel.id})!"
-                )
-
-
-async def routine_cache_messages():
-    while True:
-        await cache_messages()
-        await asyncio.sleep(300)
 
 
 async def handle_message(prompt: str, update_context: bool = False) -> str:
@@ -91,13 +64,14 @@ async def markov(ctx: discord.ApplicationCommand):
     log.info("Creating markov chain...")
     await ctx.response.defer()
     log.info("Fetching messages...")
-    if ctx.channel_id not in channel_caches.keys():
-        channel_caches[ctx.channel_id] = [
+    if ctx.channel_id not in chat.message_cache.keys():
+        chat.message_cache[ctx.channel_id] = [
             message["content"]
             async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
+        messages = chat.message_cache[ctx.channel_id]
     else:
-        messages = channel_caches[ctx.channel_id]
+        messages = chat.message_cache[ctx.channel_id]
     pool = "\n".join(messages)
     log.info("Generating text...")
     model = markovify.Text(pool)
@@ -113,13 +87,14 @@ async def think(ctx: discord.ApplicationCommand):
     global context
     await ctx.response.defer()
     log.info("Fetching messages...")
-    if ctx.channel_id not in channel_caches.keys():
-        channel_caches[ctx.channel_id] = [
+    if ctx.channel_id not in chat.message_cache.keys():
+        chat.message_cache[ctx.channel_id] = [
             message["content"]
             async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
+        messages = chat.message_cache[ctx.channel_id]
     else:
-        messages = channel_caches[ctx.channel_id]
+        messages = chat.message_cache[ctx.channel_id]
     pool = "\n".join(messages)
 
     # Generate a chain
@@ -130,7 +105,9 @@ async def think(ctx: discord.ApplicationCommand):
 
     # Think about the chain with the LLM
     log.info("Thinking about it...")
-    response: str = await handle_message(f"Repbot thinks: *{result}*\n\nreputablebot: ", True)
+    response: str = await handle_message(
+        f"Repbot thinks: *{result}*\n\nreputablebot: ", True
+    )
     log.info(f"Generated response: {response}")
 
     # Respond via the command context
@@ -264,45 +241,39 @@ def should_respond(channel: discord.TextChannel) -> bool:
 
 
 @repbot.listen()
-async def on_message(msg: discord.Message):
-    if msg.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and msg.author != repbot.user:
-        if msg.content[0] in ["#", "!", "/"]:
+async def on_message(message: discord.Message):
+    if (
+        message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID
+        and message.author != repbot.user
+    ):
+        if message.content[0] in ["#", "!", "/"]:
             return
-        await dungeon.on_message(msg)
+        await dungeon.on_message(message)
 
-    if msg.author == repbot.user or msg.author in responsive_ignore_user:
+    if message.author == repbot.user or message.author in responsive_ignore_user:
         return
 
-    if msg.channel in responsive_ignored_channels:
+    if message.channel in chat.ignored_channels:
         return
 
-    if repbot.user in msg.mentions:
-        log.info("Repbot was mentioned in a message.")
-        log.info("Generating a response!")
-        async with msg.channel.typing():
-            response = await handle_message(
-                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
-                True,
-            )
-            log.info(f"Responding with: '{response}'")
-            await msg.channel.send(response)
-    elif should_respond(msg.channel):
-        log.info("Responding to random message.")
-        async with msg.channel.typing():
-            response = await handle_message(
-                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
-                True,
-            )
-            log.info(f"Responding with: '{response}'")
-            await msg.channel.send(response)
-    else:
-        log.debug("Not responding message.")
+    if repbot.user in message.mentions or should_respond(message.channel):
+        log.info(f"Responding to message: {message.author}: '{message.content}'")
+        async with message.channel.typing():
+            await chat.respond(message)
 
 
 @repbot.event
 async def on_ready():
     log.info(f"Reputable Bot is online as {repbot.user}")
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
+
+    log.info("Initialising chat...")
+    text_channels: list[discord.TextChannel] = [
+        channel
+        for channel in repbot.get_all_channels()
+        if type(channel) is discord.TextChannel
+    ]
+    await chat.init(Path("context.json"), text_channels)
 
     if not env.REPBOT_DEFAULT_CHANNEL_ID:
         log.warning("REPBOT_DEFAULT_CHANNEL_ID is not set.")
@@ -322,12 +293,6 @@ async def on_ready():
             log.info(f"Selecting a random channel for now...")
             channel: discord.TextChannel = random_channel()
 
-    log.info("Gathering channel cache...")
-    await cache_messages()
-    log.info("Starting cache routine.")
-    caching_task = asyncio.create_task(routine_cache_messages())
-    background_tasks.add(caching_task)
-
     await channel.send("Hey, meatbags!")
     log.info(
         f"Sent greeting message. Attention now focused on default channel: {channel.name}"
@@ -339,15 +304,14 @@ async def on_ready():
     if not env.REPBOT_DUNGEON_CHANNEL_ID:
         log.warning("No dungeon channel set")
     else:
-        log.info("doin it")
         dungeon_channel = repbot.get_channel(env.REPBOT_DUNGEON_CHANNEL_ID)
-        responsive_ignored_channels.add(dungeon_channel)
+        chat.ignored_channels.add(dungeon_channel)
+        chat.ignored_channels.add(dungeon_channel)
         await dungeon.init_dungeon(dungeon_channel)
 
 
 if __name__ == "__main__":
-    env.setup()
-    logging.basicConfig(level=env.REPBOT_LOG_LEVEL)
+    log.setLevel(env.REPBOT_LOG_LEVEL)
     log.info("🤖 Environment initialised! 🤖")
     log.info(f"🗒️ Log level: {env.REPBOT_LOG_LEVEL}")
     log.info(f"📻 Default channel ID: {env.REPBOT_DEFAULT_CHANNEL_ID}")
