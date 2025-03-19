@@ -10,7 +10,8 @@ jobs:
   GitVersion:
     runs-on: ubuntu-latest
     outputs:
-      semVer: ${{ steps.version.outputs.majorMinorPatch }}
+      majorMinorPatch: ${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}
+      majorMinorPatch-branchName: ${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}-${{ steps.version.outputs.branchName }}
     steps:
       - uses: actions/checkout@v4
         with:
