@@ -9,7 +9,7 @@ import markovify
 from discord import TextChannel
 from discord import Message
 
-log = logging.getLogger("reputable_dungeon")
+log = logging.getLogger(__name__)
 
 context: list[int] = []
 system: str
