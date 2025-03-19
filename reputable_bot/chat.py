@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 context: list[int] = []
 context_saving_task: Task
 
-message_cache: dict[int, list[str]]  = {}
+message_cache: dict[int, list[str]] = {}
 
 # Channel config
 ignored_channels: list[TextChannel] = []

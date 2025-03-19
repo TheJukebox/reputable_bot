@@ -16,13 +16,15 @@ log = logging.getLogger(__name__)
 
 tasks: set[Task] = set()
 
+
 async def cache_messages(channels: list[TextChannel]):
     while True:
         for channel in channels:
             log.info(f"Caching {channel}...")
             try:
                 chat.message_cache[channel.id] = [
-                    message["content"] async for message in utils.fetch_messages(channel, 200)
+                    message["content"]
+                    async for message in utils.fetch_messages(channel, 200)
                 ]
                 log.info(f"Cached {channel}!")
             except Forbidden:

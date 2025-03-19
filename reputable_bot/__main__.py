@@ -268,7 +268,11 @@ async def on_ready():
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
 
     log.info("Initialising chat...")
-    text_channels: list[discord.TextChannel] = [channel for channel in repbot.get_all_channels() if type(channel) is discord.TextChannel]
+    text_channels: list[discord.TextChannel] = [
+        channel
+        for channel in repbot.get_all_channels()
+        if type(channel) is discord.TextChannel
+    ]
     await chat.init(Path("context.json"), text_channels)
 
     if not env.REPBOT_DEFAULT_CHANNEL_ID:
@@ -288,8 +292,6 @@ async def on_ready():
                     log.info(f"\t{c.name}: {c.id}")
             log.info(f"Selecting a random channel for now...")
             channel: discord.TextChannel = random_channel()
-
-
 
     await channel.send("Hey, meatbags!")
     log.info(
