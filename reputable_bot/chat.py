@@ -4,6 +4,7 @@ from asyncio import sleep
 import json
 from pathlib import Path
 from typing import cast
+import re
 
 from . import env
 from . import ollama
@@ -48,7 +49,7 @@ async def respond(message: Message):
         log.info("Generating a response...")
         for i in range(4):
             prompt: str = (
-                f"{message.author.display_name}: {message.content}\nreputablebot: "
+                f"{message.author.display_name}: {message.clean_content}\nreputablebot: "
             )
             response = await generate_message(prompt, True)
             if len(response) > 2000:
