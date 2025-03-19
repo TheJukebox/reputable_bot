@@ -8,6 +8,7 @@ from . import dungeon
 from . import env
 from . import ollama
 from . import utils
+from . import routines
 
 import markovify
 import discord
@@ -32,9 +33,6 @@ responsive_disliked_channels = set()
 responsive_ignored_channels = set()
 responsive_ignore_user = set()
 
-background_tasks = set()
-channel_caches = {}
-
 
 def random_channel() -> discord.TextChannel:
     id = random.choice(
@@ -45,31 +43,6 @@ def random_channel() -> discord.TextChannel:
         ]
     ).id
     return repbot.get_channel(id)
-
-
-async def cache_messages():
-    log.info("Caching messages...")
-    for channel in repbot.get_all_channels():
-        if type(channel) is discord.TextChannel and channel:
-            log.info(f"Caching messages from {channel.name} ({channel.id}).")
-            try:
-                channel_caches[channel.id] = [
-                    message["content"]
-                    async for message in utils.fetch_messages(channel, 200)
-                ]
-                log.info(
-                    f"Finished caching messages from {channel.name} ({channel.id})!"
-                )
-            except discord.errors.Forbidden:
-                log.info(
-                    f"Forbidden from accessing channel {channel.name} ({channel.id})!"
-                )
-
-
-async def routine_cache_messages():
-    while True:
-        await cache_messages()
-        await asyncio.sleep(300)
 
 
 async def handle_message(prompt: str, update_context: bool = False) -> str:
@@ -93,13 +66,13 @@ async def markov(ctx: discord.ApplicationCommand):
     log.info("Creating markov chain...")
     await ctx.response.defer()
     log.info("Fetching messages...")
-    if ctx.channel_id not in channel_caches.keys():
-        channel_caches[ctx.channel_id] = [
+    if ctx.channel_id not in chat.message_cache.keys():
+        chat.message_cache[ctx.channel_id] = [
             message["content"]
             async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
     else:
-        messages = channel_caches[ctx.channel_id]
+        messages = chat.message_cache[ctx.channel_id]
     pool = "\n".join(messages)
     log.info("Generating text...")
     model = markovify.Text(pool)
@@ -115,13 +88,13 @@ async def think(ctx: discord.ApplicationCommand):
     global context
     await ctx.response.defer()
     log.info("Fetching messages...")
-    if ctx.channel_id not in channel_caches.keys():
-        channel_caches[ctx.channel_id] = [
+    if ctx.channel_id not in chat.message_cache.keys():
+        chat.message_cache[ctx.channel_id] = [
             message["content"]
             async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
     else:
-        messages = channel_caches[ctx.channel_id]
+        messages = chat.message_cache[ctx.channel_id]
     pool = "\n".join(messages)
 
     # Generate a chain
@@ -295,7 +268,8 @@ async def on_ready():
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
 
     log.info("Initialising chat...")
-    await chat.init(Path("context.json"))
+    text_channels: list[discord.TextChannel] = [channel for channel in repbot.get_all_channels() if type(channel) is discord.TextChannel]
+    await chat.init(Path("context.json"), text_channels)
 
     if not env.REPBOT_DEFAULT_CHANNEL_ID:
         log.warning("REPBOT_DEFAULT_CHANNEL_ID is not set.")
@@ -315,11 +289,7 @@ async def on_ready():
             log.info(f"Selecting a random channel for now...")
             channel: discord.TextChannel = random_channel()
 
-    log.info("Gathering channel cache...")
-    await cache_messages()
-    log.info("Starting cache routine.")
-    caching_task = asyncio.create_task(routine_cache_messages())
-    background_tasks.add(caching_task)
+
 
     await channel.send("Hey, meatbags!")
     log.info(

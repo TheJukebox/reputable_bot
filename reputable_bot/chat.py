@@ -8,6 +8,7 @@ from typing import cast
 
 from . import env
 from . import ollama
+from . import routines
 
 # import markovify
 from discord import Message
@@ -21,6 +22,7 @@ log = logging.getLogger(__name__)
 context: list[int] = []
 context_saving_task: Task
 
+message_cache: dict[int, list[str]]  = {}
 
 # Channel config
 ignored_channels: list[TextChannel] = []
@@ -65,16 +67,7 @@ async def respond(message: Message):
         log.error(f"{message.channel} is not a valid text channel: {error}")
 
 
-async def save_context_routine(context_path: Path):
-    while True:
-        log.info(f"Saving context to {context_path}.")
-        with open(context_path, "w") as f:
-            f.write(json.dumps(context))
-        log.info("Context saved!")
-        await sleep(60)
-
-
-async def init(context_path: Path) -> bool:
+async def init(context_path: Path, channels: list[TextChannel]) -> bool:
     # load context
     global context
     global context_saving_task
@@ -91,9 +84,11 @@ async def init(context_path: Path) -> bool:
             f"{context_path} does not contain valid JSON! Proceeding with empty context."
         )
 
-    log.info("Starting context saving task...")
-    context_saving_task = create_task(save_context_routine(context_path))
-    log.info("Started!")
+    log.info("Starting routines...")
+    routines.tasks.add(create_task(routines.cache_context(context_path)))
+    log.info("Started context caching!")
+    routines.tasks.add(create_task(routines.cache_messages(channels)))
+    log.info("Started message caching!")
 
     log.info(
         "Initialised chat:"
