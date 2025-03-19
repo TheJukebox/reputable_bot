@@ -121,7 +121,7 @@ async def init_dungeon(channel: TextChannel):
 async def on_message(msg: Message):
     global context
     log.info(f"Received message from {msg.author.display_name}: {msg.content}")
-    chance: int = random.randint(0,100)
+    chance: int = random.randint(0, 100)
     hints: list[str] = [
         "Foreshadow a combat encounter",
         "Foreshadow a trap",

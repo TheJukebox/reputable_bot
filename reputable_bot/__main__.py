@@ -132,7 +132,9 @@ async def think(ctx: discord.ApplicationCommand):
 
     # Think about the chain with the LLM
     log.info("Thinking about it...")
-    response: str = await handle_message(f"Repbot thinks: *{result}*\n\nreputablebot: ", True)
+    response: str = await handle_message(
+        f"Repbot thinks: *{result}*\n\nreputablebot: ", True
+    )
     log.info(f"Generated response: {response}")
 
     # Respond via the command context
@@ -267,7 +269,10 @@ def should_respond(channel: discord.TextChannel) -> bool:
 
 @repbot.listen()
 async def on_message(message: discord.Message):
-    if message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and message.author != repbot.user:
+    if (
+        message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID
+        and message.author != repbot.user
+    ):
         if message.content[0] in ["#", "!", "/"]:
             return
         await dungeon.on_message(message)
@@ -288,7 +293,7 @@ async def on_message(message: discord.Message):
 async def on_ready():
     log.info(f"Reputable Bot is online as {repbot.user}")
     log.info(f"Default channel ID is {env.REPBOT_DEFAULT_CHANNEL_ID}")
-    
+
     log.info("Initialising chat...")
     await chat.init(Path("context.json"))
 
