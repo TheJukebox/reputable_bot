@@ -25,7 +25,7 @@ context_saving_task: Task
 message_cache: dict[int, list[str]] = {}
 
 # Channel config
-ignored_channels: set[TextChannel] = set() 
+ignored_channels: set[TextChannel] = set()
 
 
 async def generate_message(prompt: str, update_global_context: bool = False) -> str:

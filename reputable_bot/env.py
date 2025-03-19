@@ -46,9 +46,7 @@ if not REPBOT_DISCORD_API_TOKEN:
     exit(1)
 
 if not REPBOT_OLLAMA_URL:
-    log.warning(
-        "REPBOT_OLLAMA_URL is not set. Defaulting to 'http://localhost:11343'"
-    )
+    log.warning("REPBOT_OLLAMA_URL is not set. Defaulting to 'http://localhost:11343'")
     REPBOT_OLLAMA_URL = "http://localhost:11343"
 
 if not REPBOT_DEFAULT_MODEL:

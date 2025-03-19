@@ -8,6 +8,7 @@ WARN = logging.WARN
 WARNING = logging.WARNING
 ERROR = logging.ERROR
 
+
 class ReputablebotFormatter(logging.Formatter):
 
     def colour(self, level):
@@ -24,6 +25,7 @@ class ReputablebotFormatter(logging.Formatter):
         timestamp: str = datetime.datetime.now().strftime("%Y%m%d %H:%M:%S")
         level = self.colour(record.levelname)
         return f"{timestamp} {record.name}: {level}: {record.msg}"
+
 
 def setup_log(
     name: str,

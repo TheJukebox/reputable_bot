@@ -1,7 +1,7 @@
 import aiohttp
 
 from . import env
-from . import  logging
+from . import logging
 
 from typing import Any
 
