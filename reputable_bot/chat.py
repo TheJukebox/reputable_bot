@@ -1,7 +1,6 @@
 from asyncio import Task
 from asyncio import create_task
 from asyncio import sleep
-import logging
 import json
 from pathlib import Path
 from typing import cast
@@ -9,14 +8,13 @@ from typing import cast
 from . import env
 from . import ollama
 from . import routines
+from . import logging
 
 # import markovify
 from discord import Message
 from discord import TextChannel
 
-
-log = logging.getLogger(__name__)
-
+log = logging.setup_log(__name__)
 
 # context
 context: list[int] = []
@@ -25,7 +23,7 @@ context_saving_task: Task
 message_cache: dict[int, list[str]] = {}
 
 # Channel config
-ignored_channels: list[TextChannel] = []
+ignored_channels: set[TextChannel] = set() 
 
 
 async def generate_message(prompt: str, update_global_context: bool = False) -> str:
@@ -71,6 +69,7 @@ async def init(context_path: Path, channels: list[TextChannel]) -> bool:
     # load context
     global context
     global context_saving_task
+    log.setLevel(env.REPBOT_LOG_LEVEL)
     log.info(f"Loading LLM context from {context_path}...")
     try:
         with open(context_path, "r") as f:

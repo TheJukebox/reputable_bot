@@ -1,20 +1,18 @@
 import random
-import logging
-import asyncio
 from pathlib import Path
 
+from . import logging
+from . import env
 from . import chat
 from . import dungeon
-from . import env
 from . import ollama
 from . import utils
-from . import routines
 
 import markovify
 import discord
 from discord import default_permissions
 
-log = logging.getLogger("repbot")
+log = logging.setup_log("reputablebot")
 
 intents: discord.Intents = discord.Intents.default()
 intents.typing = True
@@ -30,7 +28,7 @@ RESPONSIVE_DURATION_BASE = 5
 channel_attention = 0
 responsive_duration = RESPONSIVE_DURATION_BASE
 responsive_disliked_channels = set()
-responsive_ignored_channels = set()
+chat.ignored_channels = set()
 responsive_ignore_user = set()
 
 
@@ -253,7 +251,7 @@ async def on_message(message: discord.Message):
     if message.author == repbot.user or message.author in responsive_ignore_user:
         return
 
-    if message.channel in responsive_ignored_channels:
+    if message.channel in chat.ignored_channels:
         return
 
     if repbot.user in message.mentions or should_respond(message.channel):
@@ -304,15 +302,14 @@ async def on_ready():
     if not env.REPBOT_DUNGEON_CHANNEL_ID:
         log.warning("No dungeon channel set")
     else:
-        log.info("doin it")
         dungeon_channel = repbot.get_channel(env.REPBOT_DUNGEON_CHANNEL_ID)
-        responsive_ignored_channels.add(dungeon_channel)
+        chat.ignored_channels.add(dungeon_channel)
+        chat.ignored_channels.add(dungeon_channel)
         await dungeon.init_dungeon(dungeon_channel)
 
 
 if __name__ == "__main__":
-    env.setup()
-    logging.basicConfig(level=env.REPBOT_LOG_LEVEL)
+    log.setLevel(env.REPBOT_LOG_LEVEL)
     log.info("🤖 Environment initialised! 🤖")
     log.info(f"🗒️ Log level: {env.REPBOT_LOG_LEVEL}")
     log.info(f"📻 Default channel ID: {env.REPBOT_DEFAULT_CHANNEL_ID}")

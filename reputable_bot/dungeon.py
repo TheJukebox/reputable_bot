@@ -1,20 +1,21 @@
-import logging
 import random
 
 from . import env
 from . import ollama
+from . import logging
 
 
 import markovify
 from discord import TextChannel
 from discord import Message
 
-log = logging.getLogger(__name__)
+log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 context: list[int] = []
 system: str
 
-readme: str = """
+readme: str = r"""
 ```
         ,  ,  _,,    _, _,  , ,  _,    ___,_,. 
         | ,| /_,|   /  / \,|\/| /_,   ' | / \, 

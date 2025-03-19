@@ -5,14 +5,16 @@ from asyncio import sleep
 from asyncio import create_task
 from pathlib import Path
 
+from . import env
 from . import utils
 from . import chat
+from . import logging
 
 from discord import TextChannel
 from discord import Forbidden
 
-log = logging.getLogger(__name__)
-
+log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 tasks: set[Task] = set()
 

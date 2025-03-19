@@ -1,12 +1,12 @@
 import aiohttp
 
 from . import env
+from . import  logging
 
 from typing import Any
-import logging
 
-
-log = logging.getLogger(__name__)
+log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 # This might be too long
 # but the "you are not depressed" is 1000% necessary to stop him from

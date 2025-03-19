@@ -1,15 +1,16 @@
 import json
 import os
 import datetime
-import logging
 from typing import AsyncGenerator
 from pathlib import Path
 
 from . import env
+from . import logging
 
 import discord
 
-log = logging.getLogger(__name__)
+log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 
 async def fetch_messages(channel: discord.TextChannel, n: int) -> AsyncGenerator:
