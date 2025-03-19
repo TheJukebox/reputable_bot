@@ -256,7 +256,7 @@ async def on_message(message: discord.Message):
     if message.channel in responsive_ignored_channels:
         return
 
-    if repbot.user in message.mentions or should_respons(message.channel):
+    if repbot.user in message.mentions or should_respond(message.channel):
         log.info(f"Responding to message: {message.author}: '{message.content}'")
         async with message.channel.typing():
             await chat.respond(message)
