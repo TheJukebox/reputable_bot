@@ -106,9 +106,7 @@ async def init_dungeon(channel: TextChannel):
                 system=system,
             )
             if len(response[0]) > 2000:
-                log.warning(
-                    f"Failed to produce a short enough output. Retrying [{i+1}/4]"
-                )
+                log.warning(f"Failed to produce a short enough output. Retrying [{i+1}/4]")
                 continue
             output: str = response[0]
             context = response[1]

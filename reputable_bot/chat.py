@@ -48,9 +48,7 @@ async def respond(message: Message):
 
         log.info("Generating a response...")
         for i in range(4):
-            prompt: str = (
-                f"{message.author.display_name}: {message.clean_content}\nreputablebot: "
-            )
+            prompt: str = f"{message.author.display_name}: {message.clean_content}\nreputablebot: "
             response = await generate_message(prompt, True)
             if len(response) > 2000:
                 log.warn(f"Generated too long of a response, retrying [{i+1}/4]")
@@ -76,13 +74,9 @@ async def init(context_path: Path, channels: list[TextChannel]) -> bool:
         with open(context_path, "r") as f:
             context = json.loads(f.read())
     except FileNotFoundError:
-        log.warn(
-            f"No LLM context saved at {context_path}! Proceeding with empty context."
-        )
+        log.warn(f"No LLM context saved at {context_path}! Proceeding with empty context.")
     except json.JSONDecodeError:
-        log.warn(
-            f"{context_path} does not contain valid JSON! Proceeding with empty context."
-        )
+        log.warn(f"{context_path} does not contain valid JSON! Proceeding with empty context.")
 
     log.info("Starting routines...")
     routines.tasks.add(create_task(routines.cache_context(context_path)))
