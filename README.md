@@ -1,6 +1,6 @@
 # reputable\_bot
 
-![build](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/build.yaml?branch=main)
+![build](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/build.yaml/badge.svg)
 
 Reputable Bot is a Discord bot built with [Pycord](https://pycord.dev/).
 
