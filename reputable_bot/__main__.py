@@ -248,7 +248,8 @@ async def on_message(message: discord.Message):
     ):
         if message.content[0] in ["#", "!", "/"]:
             return
-        await dungeon.on_message(message)
+        async with message.channel.typing():
+            await dungeon.on_message(message)
 
     if message.author == repbot.user or message.author in responsive_ignore_user:
         return

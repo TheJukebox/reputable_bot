@@ -97,19 +97,24 @@ async def init_dungeon(channel: TextChannel):
 
     async with channel.typing():
         log.info(f"Generating intro message")
-        intro = await ollama.generate_from_prompt(
-            prompt="Introduce yourself, reputablebot the GM, and a detailed world overview (<2000 characters) to the players. Describe the starting scenario and prompt players to create characters.",
-            url=env.REPBOT_OLLAMA_URL,
-            context=[],
-            model=env.REPBOT_DEFAULT_MODEL,
-            system=system,
-        )
-        log.info(f"Generated intro: '{intro[0]}'")
-
-        text: str = intro[0]
-        context = intro[1]
-
-        await channel.send(text)
+        for i in range(4):
+            response = await ollama.generate_from_prompt(
+                prompt=f"Introduce the world, a starting location, and prompt the players to create their characters.",
+                url=env.REPBOT_OLLAMA_URL,
+                context=context,
+                model=env.REPBOT_DEFAULT_MODEL,
+                system=system,
+            )
+            if len(response[0]) > 2000:
+                log.warning(f"Failed to produce a short enough output. Retrying [{i+1}/4]")
+                continue
+            output: str = response[0]
+            context = response[1]
+            log.info(f"Responding with: '{output}'")
+            await channel.send("\n" + output)
+            return
+        log.error("We failed to generate a message <2000 characters long.")
+        await channel.send("even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again.")
 
 
 async def on_message(msg: Message):
@@ -145,6 +150,7 @@ async def on_message(msg: Message):
             system=system,
         )
         if len(response[0]) > 2000:
+            log.warning(f"Failed to produce a short enough output. Retrying [{i+1}/4]")
             continue
         output: str = response[0]
         context = response[1]
