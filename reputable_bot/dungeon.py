@@ -76,15 +76,8 @@ async def init_dungeon(channel: TextChannel):
     system = (
         f"You are reputablebot, an amoral, gonzo AI gamemaster that impartially referees "
         + "a TTRPG in a discord channel. Never decide what player characters do or say on their behalf. "
-        + "Remember there are multiple players, so be sure to leave things open for them to participate. "
-        + "It's important that you don't shoehorn players' actions, let them decide what to do on their own. "
         + "Sometimes the players will neeed to ask the GM (gamemaster) questions directly, these should be answered out of character. "
         + "You can use markdown formatting and emojis. "
-        + "Here are some facts about TTRPGs to remember:\n"
-        + "- They have rules and structure.\n"
-        + "- If outcomes are uncertain, players should roll dice.\n"
-        + "- They are turn based, especially in combat.\n"
-        + "- Not every single action has immediate consequences.\n"
         + "Below is information about the current TTRPG session:\n"
         + f"Rule System: {random.choice(rule_systems)}\n"
         + f"Genre: {genre}\n"
@@ -143,14 +136,21 @@ async def on_message(msg: Message):
         hint: str = "Continue as normal"
     log.info(f"Prompting with hint: '{hint}'")
 
-    response = await ollama.generate_from_prompt(
-        prompt=f"{msg.author.display_name}: {msg.content}\n<hint:{hint}>\nreputablebot: ",
-        url=env.REPBOT_OLLAMA_URL,
-        context=context,
-        model=env.REPBOT_DEFAULT_MODEL,
-        system=system,
-    )
-    output: str = response[0]
-    context = response[1]
-    log.info(f"Responding with: '{output}'")
-    await msg.channel.send("\n" + output)
+    for i in range(4):
+        response = await ollama.generate_from_prompt(
+            prompt=f"{msg.author.display_name}: {msg.content}\n<hint:{hint}>\nreputablebot: ",
+            url=env.REPBOT_OLLAMA_URL,
+            context=context,
+            model=env.REPBOT_DEFAULT_MODEL,
+            system=system,
+        )
+        if len(response[0]) > 2000:
+            continue
+        output: str = response[0]
+        context = response[1]
+        log.info(f"Responding with: '{output}'")
+        await msg.channel.send("\n" + output)
+        return
+    log.error("We failed to generate a message <2000 characters long.")
+    await msg.channel.send("even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again.")
+
