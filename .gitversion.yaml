@@ -1,0 +1,16 @@
+major-version-bump-message: \+semver:\s(breaking|major)
+minor-version-bump-message: \+semver:\s(feature|minor)
+patch-version-bump-message: \+semver:\s(fix|hotfix|patch)
+branches:
+  main:
+    increment: major
+  feature:
+    increment: minor
+    regex: ^feature(s)?[/-](?<BranchName>/+)
+  hotfix:
+    increment: patch
+    regex: ^hotfix(es)?[/-](?<BranchName>/+)
+  fix:
+    increment: patch
+    regex: ^fix(es)?[/-](?<BranchName>/+)
+
