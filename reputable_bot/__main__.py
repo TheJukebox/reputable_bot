@@ -91,6 +91,7 @@ async def think(ctx: discord.ApplicationCommand):
             message["content"]
             async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
+        messages = chat.message_cache[ctx.channel_id]
     else:
         messages = chat.message_cache[ctx.channel_id]
     pool = "\n".join(messages)
