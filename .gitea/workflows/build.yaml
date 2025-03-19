@@ -1,0 +1,64 @@
+name: Build container
+run-name: Build container by @${{ gitea.actor }}
+on:
+  push:
+    branches:
+      - main
+      - feature/*
+
+jobs:
+  GitVersion:
+    runs-on: ubuntu-latest
+    outputs:
+      semVer: ${{ steps.version.outputs.semVer }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.1.11
+        with:
+          versionSpec: '6.0.x'
+        env:
+          DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: 1
+
+      - name: Determine Version
+        id: version
+        uses: gittools/actions/gitversion/execute@v3.1.11
+
+  Build:
+    runs-on: host 
+    needs: GitVersion
+    env:
+      IMAGE_TAG: gitea.bogan.io/jukebox/repbot:${{ needs.GitVersion.outputs.semVer }}
+      IMAGE_TAG_LATEST: gitea.bogan.io/jukebox/repbot:latest
+    steps:
+      - name: Clone repo
+        run: git clone --branch ${{ gitea.ref_name }} $REPO_URL repbot > /dev/null
+        env:
+          REPO_URL: https://gitea.bogan.io/${{ gitea.repository }}
+
+      - name: Login to registry
+        run: docker login -u ${{ vars.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_TOKEN }} ${{ vars.REGISTRY }}
+
+      - name: Build image
+        run: |
+          cd repbot
+          docker build -t $IMAGE_TAG .  
+          if [[ "${{ gitea.ref_name }}" == "main" ]]; then
+            docker tag $IMAGE_TAG $IMAGE_TAG_LATEST 
+          fi
+
+      - name: Push image
+        run: |
+          docker push $IMAGE_TAG
+          if [[ "${{ gitea.ref_name }}" == "main" ]]; then
+            docker push $IMAGE_TAG_LATEST
+          fi
+
