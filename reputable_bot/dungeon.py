@@ -106,7 +106,9 @@ async def init_dungeon(channel: TextChannel):
                 system=system,
             )
             if len(response[0]) > 2000:
-                log.warning(f"Failed to produce a short enough output. Retrying [{i+1}/4]")
+                log.warning(
+                    f"Failed to produce a short enough output. Retrying [{i+1}/4]"
+                )
                 continue
             output: str = response[0]
             context = response[1]
@@ -114,7 +116,9 @@ async def init_dungeon(channel: TextChannel):
             await channel.send("\n" + output)
             return
         log.error("We failed to generate a message <2000 characters long.")
-        await channel.send("even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again.")
+        await channel.send(
+            "even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again."
+        )
 
 
 async def on_message(msg: Message):
@@ -158,5 +162,6 @@ async def on_message(msg: Message):
         await msg.channel.send("\n" + output)
         return
     log.error("We failed to generate a message <2000 characters long.")
-    await msg.channel.send("even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again.")
-
+    await msg.channel.send(
+        "even after 4 retries, i couldnt make a proper response. man do i suck. try prompting me again."
+    )
