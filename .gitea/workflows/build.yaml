@@ -3,8 +3,15 @@ run-name: Build container by @${{ gitea.actor }}
 on:
   push:
     branches:
-      - main
+      - hotfix/*
+      - hotfixes/*
+      - fix/*
+      - fixes/*
       - feature/*
+      - features/*
+      - main
+    paths-ignore:
+      - "README.md"
 
 jobs:
   GitVersion:
@@ -33,6 +40,9 @@ jobs:
       - name: Determine Version
         id: version
         uses: gittools/actions/gitversion/execute@v3.1.11
+        with:
+          useConfigFile: true
+          configFilePath: .gitversion.yaml
 
   Build:
     runs-on: host 
