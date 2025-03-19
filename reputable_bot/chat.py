@@ -15,6 +15,7 @@ from discord import Message
 from discord import TextChannel
 
 log = logging.setup_log(__name__)
+log.setLevel(env.REPBOT_LOG_LEVEL)
 
 # context
 context: list[int] = []
@@ -69,7 +70,6 @@ async def init(context_path: Path, channels: list[TextChannel]) -> bool:
     # load context
     global context
     global context_saving_task
-    log.setLevel(env.REPBOT_LOG_LEVEL)
     log.info(f"Loading LLM context from {context_path}...")
     try:
         with open(context_path, "r") as f:
