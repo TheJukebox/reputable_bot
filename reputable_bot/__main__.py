@@ -266,39 +266,22 @@ def should_respond(channel: discord.TextChannel) -> bool:
 
 
 @repbot.listen()
-async def on_message(msg: discord.Message):
-    if msg.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and msg.author != repbot.user:
-        if msg.content[0] in ["#", "!", "/"]:
+async def on_message(message: discord.Message):
+    if message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and message.author != repbot.user:
+        if message.content[0] in ["#", "!", "/"]:
             return
-        await dungeon.on_message(msg)
+        await dungeon.on_message(message)
 
-    if msg.author == repbot.user or msg.author in responsive_ignore_user:
+    if message.author == repbot.user or message.author in responsive_ignore_user:
         return
 
-    if msg.channel in responsive_ignored_channels:
+    if message.channel in responsive_ignored_channels:
         return
 
-    if repbot.user in msg.mentions:
-        log.info("Repbot was mentioned in a message.")
-        log.info("Generating a response!")
-        async with msg.channel.typing():
-            response = await handle_message(
-                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
-                True,
-            )
-            log.info(f"Responding with: '{response}'")
-            await msg.channel.send(response)
-    elif should_respond(msg.channel):
-        log.info("Responding to random message.")
-        async with msg.channel.typing():
-            response = await handle_message(
-                f"{msg.author.display_name}: {msg.content.replace(repbot.user.mention+" ", "")}\nreputablebot: ",
-                True,
-            )
-            log.info(f"Responding with: '{response}'")
-            await msg.channel.send(response)
-    else:
-        log.debug("Not responding message.")
+    if repbot.user in message.mentions or should_respons(message.channel):
+        log.info(f"Responding to message: {message.author}: '{message.content}'")
+        async with message.channel.typing():
+            await chat.respond(message)
 
 
 @repbot.event
