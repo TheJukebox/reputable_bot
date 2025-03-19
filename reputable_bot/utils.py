@@ -19,7 +19,7 @@ async def fetch_messages(channel: discord.TextChannel, n: int) -> AsyncGenerator
             "message_id": message.id,
             "author_id": message.author.id,
             "author_display_name": message.author.display_name,
-            "content": message.content,
+            "content": message.clean_content,
             "created_at": message.created_at.isoformat(),
             "channel": message.channel.id,
             "pinned": message.pinned,
