@@ -10,7 +10,7 @@ jobs:
   GitVersion:
     runs-on: ubuntu-latest
     outputs:
-      semVer: ${{ steps.version.outputs.semVer }}
+      semVer: ${{ steps.version.outputs.majorMinorPatch }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +37,7 @@ jobs:
     runs-on: host 
     needs: GitVersion
     env:
-      IMAGE_TAG: gitea.bogan.io/jukebox/repbot:${{ needs.GitVersion.outputs.semVer }}
+      IMAGE_TAG: gitea.bogan.io/jukebox/repbot:${{ needs.GitVersion.outputs.majorMinorPatch }}
       IMAGE_TAG_LATEST: gitea.bogan.io/jukebox/repbot:latest
     steps:
       - name: Clone repo
