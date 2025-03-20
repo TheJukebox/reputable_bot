@@ -25,11 +25,11 @@ jobs:
           REPO_URL: https://gitea.bogan.io/${{ gitea.repository }}
 
       - name: Setup tools
-        run: pip install -r requirements.txt
+        run: cd repbot && pip install -r requirements.txt
 
       - name: Style check
-        run: black reputable_bot/
+        run: cd repbot && black reputable_bot/
       
       - name: Lint check
-        run: pylint reputable_bot/
+        run: cd repbot && pylint reputable_bot/
 
