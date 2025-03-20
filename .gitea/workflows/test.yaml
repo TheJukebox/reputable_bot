@@ -15,7 +15,9 @@ on:
 
 jobs:
   Lint:
-    runs-on: python:3.12.9
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.12.9
     steps:
       - name: Clone repo
         run: git clone --branch ${{ gitea.ref_name }} $REPO_URL repbot > /dev/null
