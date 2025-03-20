@@ -5,7 +5,7 @@ branches:
   main:
     increment: none
     prevent-increment:
-      of-merged-branch: true
+      of-merged-branch: false
   feature:
     increment: Minor
     regex: ^feature(s)?[/-](?<BranchName>/+)
