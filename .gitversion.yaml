@@ -4,7 +4,8 @@ patch-version-bump-message: \+semver:\s(fix|hotfix|patch)
 branches:
   main:
     increment: none
-    prevent-increment-of-merged-branch: true
+    prevent-increment:
+      of-merged-branch: true
   feature:
     increment: Minor
     regex: ^feature(s)?[/-](?<BranchName>.+)
