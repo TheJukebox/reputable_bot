@@ -4,15 +4,14 @@ patch-version-bump-message: \+semver:\s(fix|hotfix|patch)
 branches:
   main:
     increment: none
-    prevent-increment:
-      of-merged-branch: true
+    prevent-increment-of-merged-branch: true
   feature:
     increment: Minor
-    regex: ^feature(s)?[/-](?<BranchName>/+)
+    regex: ^feature(s)?[/-](?<BranchName>.+)
   hotfix:
     increment: Patch
-    regex: ^hotfix(es)?[/-](?<BranchName>/+)
+    regex: ^hotfix(es)?[/-](?<BranchName>.+)
   fix:
     increment: Patch
-    regex: ^fix(es)?[/-](?<BranchName>/+)
+    regex: ^fix(es)?[/-](?<BranchName>.+)
 
