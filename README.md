@@ -1,6 +1,6 @@
 # reputable\_bot
-![lint](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/lint.yaml/badge.svg)
-![build](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/build.yaml/badge.svg)
+![lint](https://github/jukebox/reputable_bot/actions/workflows/lint.yaml/badge.svg)
+![build](https://github/jukebox/reputable_bot/actions/workflows/build.yaml/badge.svg)
 
 Reputable Bot is a Discord bot built with [Pycord](https://pycord.dev/), that leverages
 [Ollama](https://ollama.com/) for generating completions.
