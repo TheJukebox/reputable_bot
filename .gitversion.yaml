@@ -8,11 +8,11 @@ branches:
       of-merged-branch: false
   feature:
     increment: Minor
-    regex: ^feature(s)?[/-](?<BranchName>/+)
+    regex: ^feature(s)?[/-](?<BranchName>.+)
   hotfix:
     increment: Patch
-    regex: ^hotfix(es)?[/-](?<BranchName>/+)
+    regex: ^hotfix(es)?[/-](?<BranchName>.+)
   fix:
     increment: Patch
-    regex: ^fix(es)?[/-](?<BranchName>/+)
+    regex: ^fix(es)?[/-](?<BranchName>.+)
 

@@ -25,8 +25,7 @@ async def cache_messages(channels: list[TextChannel]):
             log.info(f"Caching {channel}...")
             try:
                 chat.message_cache[channel.id] = [
-                    message["content"]
-                    async for message in utils.fetch_messages(channel, 200)
+                    message["content"] async for message in utils.fetch_messages(channel, 200)
                 ]
                 log.info(f"Cached {channel}!")
             except Forbidden:

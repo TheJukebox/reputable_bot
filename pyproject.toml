@@ -32,3 +32,6 @@ include = ["reputable_bot"]
 [project.scripts]
 reputable_bot = "reputable_bot.main:main"
 
+[tool.black]
+line-length = 100
+

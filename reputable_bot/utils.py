@@ -30,9 +30,7 @@ async def write_message_data(channel: discord.TextChannel, size: int) -> str:
     log.info(f"Fetching images for channel {channel.name} ({channel.id})...")
     messages = fetch_messages(channel, size)
     data = []
-    path: Path = Path(
-        f"repbot-{size}_messages-{datetime.datetime.now().timestamp()}.json"
-    )
+    path: Path = Path(f"repbot-{size}_messages-{datetime.datetime.now().timestamp()}.json")
     with open(path, "w") as f:
         async for message in messages:
             data.append(message)
