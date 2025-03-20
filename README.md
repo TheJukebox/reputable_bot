@@ -50,6 +50,6 @@ containerised.
 | (string) `REPBOT_DEFAULT_MODEL` | The default model tag to use with Ollama. | `llama3.1:latest` |
 | (string) `REPBOT_CONTEXT_WINDOW` | Sets the number of tokens in the context window. | `2048` |
 | (string) `REPBOT_DEFAULT_CHANNEL_ID` | The ID of a channel in Discord that Repbot announces its presence in and focuses its attention on to start. | Randomly chosen from available text channels. |
-| (string) `REPBOT_DUNGEON_CHANNEL_ID` | The ID of a channel in Discord that Repbot will use to run Reputable Dungeon. |  Reputable Dungeon is disable if not set.  |
+| (string) `REPBOT_DUNGEON_CHANNEL_ID` | The ID of a channel in Discord that Repbot will use to run Reputable Dungeon. |  Reputable Dungeon is disabled if not set.  |
 | (string) `REPBOT_LOG_LEVEL` | Sets the log level. `info`, `debug`, and `error` are the possible options. | `info` |
 
