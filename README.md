@@ -1,5 +1,6 @@
 # reputable\_bot
 
+![lint](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/lint.yaml/badge.svg)
 ![build](https://gitea.bogan.io/jukebox/reputable_bot/actions/workflows/build.yaml/badge.svg)
 
 Reputable Bot is a Discord bot built with [Pycord](https://pycord.dev/).
