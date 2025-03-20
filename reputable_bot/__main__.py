@@ -34,11 +34,7 @@ responsive_ignore_user = set()
 
 def random_channel() -> discord.TextChannel:
     id = random.choice(
-        [
-            channel
-            for channel in repbot.get_all_channels()
-            if type(channel) is discord.TextChannel
-        ]
+        [channel for channel in repbot.get_all_channels() if type(channel) is discord.TextChannel]
     ).id
     return repbot.get_channel(id)
 
@@ -66,8 +62,7 @@ async def markov(ctx: discord.ApplicationCommand):
     log.info("Fetching messages...")
     if ctx.channel_id not in chat.message_cache.keys():
         chat.message_cache[ctx.channel_id] = [
-            message["content"]
-            async for message in utils.fetch_messages(ctx.channel, 5000)
+            message["content"] async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
         messages = chat.message_cache[ctx.channel_id]
     else:
@@ -89,8 +84,7 @@ async def think(ctx: discord.ApplicationCommand):
     log.info("Fetching messages...")
     if ctx.channel_id not in chat.message_cache.keys():
         chat.message_cache[ctx.channel_id] = [
-            message["content"]
-            async for message in utils.fetch_messages(ctx.channel, 5000)
+            message["content"] async for message in utils.fetch_messages(ctx.channel, 5000)
         ]
         messages = chat.message_cache[ctx.channel_id]
     else:
@@ -105,9 +99,7 @@ async def think(ctx: discord.ApplicationCommand):
 
     # Think about the chain with the LLM
     log.info("Thinking about it...")
-    response: str = await handle_message(
-        f"Repbot thinks: *{result}*\n\nreputablebot: ", True
-    )
+    response: str = await handle_message(f"Repbot thinks: *{result}*\n\nreputablebot: ", True)
     log.info(f"Generated response: {response}")
 
     # Respond via the command context
@@ -164,9 +156,7 @@ async def hey(ctx: discord.ApplicationContext, msg: str):
         log.debug(f"{ctx.author}: {msg}")
         await ctx.response.defer()
         response: str = await handle_message(msg, True)
-        await ctx.send_followup(
-            f"_{ctx.author.display_name} said, '{msg}'_\n\n{response}"
-        )
+        await ctx.send_followup(f"_{ctx.author.display_name} said, '{msg}'_\n\n{response}")
 
 
 @repbot.slash_command(name="wave", description="Wave at repbot to get his attention.")
@@ -242,10 +232,7 @@ def should_respond(channel: discord.TextChannel) -> bool:
 
 @repbot.listen()
 async def on_message(message: discord.Message):
-    if (
-        message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID
-        and message.author != repbot.user
-    ):
+    if message.channel.id == env.REPBOT_DUNGEON_CHANNEL_ID and message.author != repbot.user:
         if message.content[0] in ["#", "!", "/"]:
             return
         async with message.channel.typing():
@@ -270,9 +257,7 @@ async def on_ready():
 
     log.info("Initialising chat...")
     text_channels: list[discord.TextChannel] = [
-        channel
-        for channel in repbot.get_all_channels()
-        if type(channel) is discord.TextChannel
+        channel for channel in repbot.get_all_channels() if type(channel) is discord.TextChannel
     ]
     await chat.init(Path("context.json"), text_channels)
 
@@ -295,9 +280,7 @@ async def on_ready():
             channel: discord.TextChannel = random_channel()
 
     await channel.send("Hey, meatbags!")
-    log.info(
-        f"Sent greeting message. Attention now focused on default channel: {channel.name}"
-    )
+    log.info(f"Sent greeting message. Attention now focused on default channel: {channel.name}")
     global channel_attention
     channel_attention = channel
 
