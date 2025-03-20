@@ -33,9 +33,9 @@ Or you can use a container:
 docker build . -t repbot:local
 docker run repbot:local
 # You can also pull the latest build
-docker run gitea.bogan.io/jukebox/repbot:latest
+docker run ghcr.io/thejukebox/repbot:latest
 # Or a specific tag:
-docker run gitea.bogan.io/jukebox/repbot:1.0.3
+docker run ghcr.io/thejukebox/repbot:1.0.3
 ```
 
 ## Configuration
